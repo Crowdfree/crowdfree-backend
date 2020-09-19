@@ -7,3 +7,4 @@ oauthlib
 python-dotenv
 requests
 requests_oauthlib
+toolz

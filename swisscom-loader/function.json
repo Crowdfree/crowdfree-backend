@@ -6,6 +6,15 @@
       "type": "timerTrigger",
       "direction": "in",
       "schedule": "0 0 6 * * *"
+    },
+    {
+      "type": "cosmosDB",
+      "direction": "out",
+      "name": "document",
+      "databaseName": "crowdfree",
+      "collectionName": "tile-densities",
+      "createIfNotExists": "false",
+      "connectionStringSetting": "crowdfree_DOCUMENTDB"
     }
   ]
 }

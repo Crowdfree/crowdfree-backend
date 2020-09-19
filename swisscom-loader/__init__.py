@@ -7,6 +7,7 @@ from oauthlib.oauth2 import BackendApplicationClient
 import os
 from typing import Optional
 from requests_oauthlib import OAuth2Session
+from toolz.itertoolz import partition
 
 TOKEN_URL = "https://consent.swisscom.com/o/oauth2/token"
 
@@ -27,7 +28,7 @@ def get_vars() -> Optional[bool]:
         logging.info("Loading directly from system")
 
 
-def main(mytimer: func.TimerRequest) -> None:
+def main(mytimer: func.TimerRequest, document: func.Out[func.Document]) -> None:
     utc_timestamp = (
         datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc).isoformat()
     )
@@ -49,7 +50,53 @@ def main(mytimer: func.TimerRequest) -> None:
 
     # Use the access token to query an endpoint.
     resp = oauth.get(
-        "https://api.swisscom.com/layer/heatmaps/demo/grids/postal-code-areas/3097",
+        "https://api.swisscom.com/layer/heatmaps/demo/grids/municipalities/261",
         headers={"scs-version": "2"},
     )
-    logging.info(resp.json())
+
+    if not resp.ok:
+        logging.error("Failed to reach Swisscom API")
+        return
+
+    tiles = resp.json()["tiles"]
+
+    logging.info("Loaded %d tiles from Swisscom", len(tiles))
+
+    tile_density = {}
+
+    tile_ids = (tile["tileId"] for tile in tiles)
+    for chunk in partition(100, tile_ids):
+        resp = oauth.get(
+            "https://api.swisscom.com/layer/heatmaps/demo/heatmaps/dwell-density/daily/2020-03-28", # TODO this should load data for the previous day instead
+            params={"tiles": chunk},
+            headers={"scs-version": "2"},
+        )
+
+        if not resp.ok:
+            logging.error("Failed to reach Swisscom API: %s", resp.json())
+            continue
+
+        tile_density.update(
+            (tile["tileId"], tile["score"]) for tile in resp.json()["tiles"]
+        )
+
+    logging.info("Loaded densitiy for %d tiles from Swisscom", len(tile_density))
+
+    documents = func.DocumentList()
+    for tile in tiles:
+        tile_id = tile["tileId"]
+        if tile_id not in tile_density:
+            continue
+
+        density = tile_density[tile_id]
+        location = {"type": "Point", "coordinates": [tile["ll"]["x"], tile["ll"]["y"]]}
+
+        documents.append(
+            func.Document.from_dict(
+                {"tileId": tile_id, "density": density, "location": location}
+            )
+        )
+
+    document.set(documents)
+
+    logging.info("Finished outputting data")
