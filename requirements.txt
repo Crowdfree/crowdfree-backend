@@ -3,3 +3,7 @@
 # Manually managing azure-functions-worker may cause unexpected issues
 
 azure-functions
+oauthlib
+python-dotenv
+requests
+requests_oauthlib
