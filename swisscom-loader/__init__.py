@@ -93,7 +93,7 @@ def main(mytimer: func.TimerRequest, document: func.Out[func.Document]) -> None:
 
         documents.append(
             func.Document.from_dict(
-                {"tileId": tile_id, "density": density, "location": location}
+                {"id": str(tile_id), "tileId": tile_id, "density": density, "location": location}
             )
         )
 
